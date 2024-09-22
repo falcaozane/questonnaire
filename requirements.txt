@@ -1,5 +1,7 @@
 streamlit
+streamlit-dynamic-tabs
 pandas
 altair
 joblib
 plotly
+scikit-learn

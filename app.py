@@ -3,6 +3,11 @@ import pandas as pd
 import altair as alt
 import plotly.graph_objects as go
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 # Define the questionnaire
 questions = [
@@ -43,44 +48,34 @@ response_mapping = {
     'Always': 5
 }
 
-# Define the mapping of questions to leadership styles
-style_mapping = {
-    'Authoritarian': [1, 2, 3],
-    'Participative': [4, 5, 6],
-    'Delegative': [7, 8, 9],
-    'Pacesetting': [10, 11, 12],
-    'Transactional': [13, 14, 15],
-    'Transformational': [16, 17, 18],
-    'Visionary': [19, 20, 21],
-    'Coaching': [22, 23, 24],
-    'Bureaucratic': [25, 26, 27]
-}
+# Define the leadership styles
+leadership_styles = [
+    'Authoritarian', 'Participative', 'Delegative', 'Pacesetting',
+    'Transactional', 'Transformational', 'Visionary', 'Coaching', 'Bureaucratic'
+]
 
-# Function to calculate leadership style scores based on responses
-def calculate_style_scores(responses):
-    style_scores = {style: 0 for style in style_mapping.keys()}
-    
-    for i, response in enumerate(responses, 1):
-        for style, questions in style_mapping.items():
-            if i in questions:
-                style_scores[style] += response
+# Initialize the Random Forest model
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
 
-    best_style = max(style_scores, key=style_scores.get)
-    return best_style, style_scores
+# Function to train the Random Forest model
+def train_model(data):
+    X = data.drop('leadership_style', axis=1)
+    y = data['leadership_style']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    rf_model.fit(X_train, y_train)
+    y_pred = rf_model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    return accuracy, X_test, y_test, y_pred
 
-# Function to process the sample dataset
-def process_sample_dataset(file):
-    df = pd.read_csv(file)
-    actual_styles = df['leadership_style'].tolist()
-    predicted_styles = []
+# Function to predict leadership style
+def predict_style(responses):
+    return rf_model.predict([responses])[0]
 
-    for _, row in df.iterrows():
-        responses = row.iloc[:26].tolist()  # Exclude the last column (actual leadership style)
-        best_style, _ = calculate_style_scores(responses)
-        predicted_styles.append(best_style)
-
-    accuracy = sum(a == p for a, p in zip(actual_styles, predicted_styles)) / len(actual_styles)
-    return actual_styles, predicted_styles, accuracy
+# Function to get feature importances
+def get_feature_importances():
+    importances = rf_model.feature_importances_
+    feature_importances = pd.DataFrame({'feature': questions, 'importance': importances})
+    return feature_importances.sort_values('importance', ascending=False)
 
 # Create the Streamlit app
 st.title("Leadership Style Questionnaire")
@@ -90,21 +85,24 @@ st.sidebar.title("Dataset Validation")
 uploaded_file = st.sidebar.file_uploader("Upload sample dataset (CSV)", type="csv")
 
 if uploaded_file is not None:
-    actual_styles, predicted_styles, accuracy = process_sample_dataset(uploaded_file)
+    data = pd.read_csv(uploaded_file)
+    accuracy, X_test, y_test, y_pred = train_model(data)
     
-    st.sidebar.write(f"Model Accuracy on Sample Dataset: {accuracy:.2%}")
+    st.sidebar.write(f"Model Accuracy on Test Set: {accuracy:.2%}")
     
-    comparison_df = pd.DataFrame({
-        'Actual Style': actual_styles,
-        'Predicted Style': predicted_styles
-    })
+    # Confusion Matrix
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(10,8))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=leadership_styles, yticklabels=leadership_styles)
+    plt.title('Confusion Matrix')
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    st.sidebar.pyplot(plt)
     
-    st.sidebar.write("Comparison of Actual vs Predicted Styles:")
-    st.sidebar.dataframe(comparison_df)
-
-    confusion_matrix = pd.crosstab(comparison_df['Actual Style'], comparison_df['Predicted Style'])
-    st.sidebar.write("Confusion Matrix:")
-    st.sidebar.dataframe(confusion_matrix)
+    # Feature Importances
+    feature_imp = get_feature_importances()
+    st.sidebar.write("Top 10 Most Important Features:")
+    st.sidebar.dataframe(feature_imp.head(10))
 
 # Main questionnaire
 st.write("Please answer the following questions about your leadership style:")
@@ -113,60 +111,60 @@ for question in questions:
     response = st.radio(question, ('Never', 'Rarely', 'Sometimes', 'Often', 'Always'))
     responses.append(response_mapping[response])
 
-# Calculate the leadership style
-best_style, style_scores = calculate_style_scores(responses)
+if st.button("Submit"):
+    # Predict the leadership style
+    predicted_style = predict_style(responses)
 
-# Display the result
-st.markdown(f"Your predicted leadership style is: **:orange[{best_style}]**")
+    # Display the result
+    st.markdown(f"Your predicted leadership style is: **:orange[{predicted_style}]**")
 
-# Create a DataFrame for the style scores
-df = pd.DataFrame(list(style_scores.items()), columns=['Style', 'Score'])
+    # Get probabilities for each style
+    probabilities = rf_model.predict_proba([responses])[0]
+    style_probs = dict(zip(leadership_styles, probabilities))
 
-# Create a bar chart using Altair
-chart = alt.Chart(df).mark_bar().encode(
-    x='Style',
-    y='Score',
-    color=alt.condition(
-        alt.datum.Style == best_style,
-        alt.value('yellow'),  # The bar for the best style will be orange
-        alt.value('steelblue')  # Other bars will be steel blue
+    # Create a DataFrame for the style probabilities
+    df = pd.DataFrame(list(style_probs.items()), columns=['Style', 'Probability'])
+
+    # Create a bar chart using Altair
+    chart = alt.Chart(df).mark_bar().encode(
+        x='Style',
+        y='Probability',
+        color=alt.condition(
+            alt.datum.Style == predicted_style,
+            alt.value('yellow'),
+            alt.value('steelblue')
+        )
+    ).properties(
+        title='Leadership Style Probabilities'
     )
-).properties(
-    title='Leadership Style Scores'
-)
 
-# Display the chart
-st.altair_chart(chart, use_container_width=True)
+    # Display the chart
+    st.altair_chart(chart, use_container_width=True)
 
-# Display the full style score breakdown
-st.write("Here is the score breakdown for each leadership style:")
-for style, score in style_scores.items():
-    st.write(f"{style}: {score}")
+    # Prepare data for radar chart
+    radar_data = pd.DataFrame(style_probs, index=['Probability']).transpose()
+    radar_data['angle'] = np.linspace(0, 2*np.pi, len(radar_data), endpoint=False)
 
-# Prepare data for radar chart
-radar_data = pd.DataFrame(style_scores, index=['Score']).transpose()
-radar_data['angle'] = np.linspace(0, 2*np.pi, len(radar_data), endpoint=False)
+    # Create radar chart
+    fig = go.Figure()
 
-# Create radar chart
-fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=radar_data['Probability'],
+        theta=radar_data.index,
+        fill='toself',
+        name='Leadership Style',
+        marker=dict(color='rgba(255, 190, 250, 0.8)')
+    ))
 
-fig.add_trace(go.Scatterpolar(
-    r=radar_data['Score'],
-    theta=radar_data.index,
-    fill='toself',
-    name='Leadership Style',
-    marker=dict(color='rgba(255, 190, 250, 0.8)')
-))
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, max(style_probs.values())]
+            )),
+        showlegend=False,
+        title='Leadership Style Radar Chart'
+    )
 
-fig.update_layout(
-    polar=dict(
-        radialaxis=dict(
-            visible=True,
-            range=[0, max(style_scores.values())]
-        )),
-    showlegend=False,
-    title='Leadership Style Radar Chart'
-)
-
-# Display the radar chart
-st.plotly_chart(fig, use_container_width=True)
+    # Display the radar chart
+    st.plotly_chart(fig, use_container_width=True)
