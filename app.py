@@ -168,3 +168,18 @@ if st.button("Submit"):
 
     # Display the radar chart
     st.plotly_chart(fig, use_container_width=True)
+
+
+    st.markdown("""summary_line
+    
+    Authoritarian: Questions 1, 2, 3, and 13 (emphasizing control and external motivation).
+    Participative: Questions 4, 5, 6, and 7 (emphasizing collaboration, input, and autonomy).
+    Delegative: Questions 7, 8, and 9 (emphasizing autonomy and minimal guidance).
+    Pacesetting: Questions 10, 11, and 12 (emphasizing high standards and performance).
+    Transactional: Questions 13, 14, and 15 (emphasizing rewards, punishments, and clear systems).
+    Transformational: Questions 16, 17, 18, and 19 (emphasizing inspiration, vision, and trust).
+    Visionary: Questions 18, 19, and 20 (emphasizing vision, trust, and growth).
+    Coaching: Questions 21, 22, and 23 (emphasizing development, feedback, and support).
+    Bureaucratic: Questions 25, 26, and 27 (emphasizing rules, regulations, and consistency).
+    """
+    )
