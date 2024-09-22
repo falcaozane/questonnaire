@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
+from sklearn.model_selection import RandomizedSearchCV
 
 # Define the questionnaire
 questions = [
@@ -48,6 +49,33 @@ response_mapping = {
     'Always': 5
 }
 
+# Hyperparameter grid for Random Forest
+param_dist = {
+    'n_estimators': [50, 100, 200, 500],
+    'max_depth': [None, 10, 20, 30, 40],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4],
+    'bootstrap': [True, False]
+}
+
+# Function to perform hyperparameter tuning
+def hyperparameter_tuning(data):
+    X = data.drop('leadership_style', axis=1)
+    y = data['leadership_style']
+    
+    rf = RandomForestClassifier(random_state=42)
+    
+    # RandomizedSearchCV for hyperparameter tuning
+    rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_dist,
+                                   n_iter=50, cv=3, verbose=2, random_state=42, n_jobs=-1)
+    
+    rf_random.fit(X, y)
+    
+    # Best parameters found
+    st.write(f"Best Parameters: {rf_random.best_params_}")
+    
+    return rf_random.best_estimator_
+
 # Define the leadership styles
 leadership_styles = [
     'Authoritarian', 'Participative', 'Delegative', 'Pacesetting',
@@ -87,6 +115,18 @@ uploaded_file = st.sidebar.file_uploader("Upload sample dataset (CSV)", type="cs
 if uploaded_file is not None:
     data = pd.read_csv(uploaded_file)
     accuracy, X_test, y_test, y_pred = train_model(data)
+    # Perform hyperparameter tuning
+    st.sidebar.write("Performing hyperparameter tuning...")
+    best_rf_model = hyperparameter_tuning(data)
+
+    # Train the model with the best parameters
+    X = data.drop('leadership_style', axis=1)
+    y = data['leadership_style']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    best_rf_model.fit(X_train, y_train)
+    
+    y_pred = best_rf_model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
     
     st.sidebar.write(f"Model Accuracy on Test Set: {accuracy:.2%}")
     
