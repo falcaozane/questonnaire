@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
+import plotly.graph_objects as go
+import numpy as np
 
 # Define the questionnaire
 questions = [
@@ -115,7 +117,7 @@ for question in questions:
 best_style, style_scores = calculate_style_scores(responses)
 
 # Display the result
-st.write(f"Your predicted leadership style is: **{best_style}**")
+st.markdown(f"Your predicted leadership style is: **:orange[{best_style}]**")
 
 # Create a DataFrame for the style scores
 df = pd.DataFrame(list(style_scores.items()), columns=['Style', 'Score'])
@@ -126,7 +128,7 @@ chart = alt.Chart(df).mark_bar().encode(
     y='Score',
     color=alt.condition(
         alt.datum.Style == best_style,
-        alt.value('orange'),  # The bar for the best style will be orange
+        alt.value('yellow'),  # The bar for the best style will be orange
         alt.value('steelblue')  # Other bars will be steel blue
     )
 ).properties(
@@ -140,3 +142,30 @@ st.altair_chart(chart, use_container_width=True)
 st.write("Here is the score breakdown for each leadership style:")
 for style, score in style_scores.items():
     st.write(f"{style}: {score}")
+
+# Prepare data for radar chart
+radar_data = pd.DataFrame(style_scores, index=['Score']).transpose()
+radar_data['angle'] = np.linspace(0, 2*np.pi, len(radar_data), endpoint=False)
+
+# Create radar chart
+fig = go.Figure()
+
+fig.add_trace(go.Scatterpolar(
+    r=radar_data['Score'],
+    theta=radar_data.index,
+    fill='toself',
+    name='Leadership Style'
+))
+
+fig.update_layout(
+    polar=dict(
+        radialaxis=dict(
+            visible=True,
+            range=[0, max(style_scores.values())]
+        )),
+    showlegend=False,
+    title='Leadership Style Radar Chart'
+)
+
+# Display the radar chart
+st.plotly_chart(fig, use_container_width=True)
