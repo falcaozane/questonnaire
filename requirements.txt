@@ -5,3 +5,4 @@ altair
 joblib
 plotly
 scikit-learn
+seaborn
