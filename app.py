@@ -56,7 +56,7 @@ leadership_styles = [
 ]
 
 # Initialize the Random Forest model
-rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model = RandomForestClassifier(n_estimators=250, random_state=42)
 
 # Function to train the Random Forest model
 def train_model(data):
