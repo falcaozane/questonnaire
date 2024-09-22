@@ -26,7 +26,7 @@ questions = [
     "Do you inspire employees with a clear vision for the future?",
     "Do you earn trust by being transparent and honest?",
     "Are you particularly helpful for organizations that are growing quickly?",
-    "Do you help your employees develop new skills and improve their performance?",
+    "Do you help your employees / teammates develop new skills and improve their performance?",
     "Do you provide regular feedback and support to your team members?",
     "Do you focus on long-term development rather than short-term results?",
     "Do you follow established processes and regulations strictly?",
@@ -154,7 +154,8 @@ fig.add_trace(go.Scatterpolar(
     r=radar_data['Score'],
     theta=radar_data.index,
     fill='toself',
-    name='Leadership Style'
+    name='Leadership Style',
+    marker=dict(color='rgba(255, 190, 250, 0.8)')
 ))
 
 fig.update_layout(
